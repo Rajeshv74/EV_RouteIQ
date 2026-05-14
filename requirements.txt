@@ -27,3 +27,7 @@ gunicorn>=21.0.0
 
 # Dev/Testing utilities (optional)
 pytest>=7.4.0
+
+#Deploy
+Flask
+gunicorn
