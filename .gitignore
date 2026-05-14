@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+uploads/
+*.log
+
+# Patch/fix scripts (temp dev files - not needed in repo)
+patch_*.py
+fix_*.py
+
+# Large model files — use Git LFS for these
+# To upload: git lfs track "*.pth" then git add .gitattributes
+# best_model_rscd.pth is ~94MB — tracked via Git LFS

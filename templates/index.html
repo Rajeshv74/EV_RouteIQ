@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EV RouteIQ — Intelligent Road Surface Energy Optimizer</title>
+  <meta name="description" content="AI-powered road surface classification with real-time EV energy optimization."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+</head>
+<body>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-icon">⚡</span>
+    <span class="brand-text">EV <span class="accent">RouteIQ</span></span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="classify">🔍 Classify</button>
+    <button class="nav-tab" data-tab="compare">🗺️ Route Compare</button>
+    <button class="nav-tab" data-tab="fleet">🚛 Fleet</button>
+    <button class="nav-tab" data-tab="heatmap">📍 Heatmap</button>
+  </div>
+  <div class="nav-status">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Connecting...</span>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB 1: CLASSIFY                                         -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="tab-content active" id="tab-classify">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+      <div class="hero-badge">🛣️ Deep Learning + Physics Engine</div>
+      <h1 class="hero-title">Road Surface Intelligence<br/><span class="gradient-text">for Electric Vehicles</span></h1>
+      <p class="hero-sub">Upload a road image → AI classifies 27 surface types → Physics calculates exact battery impact</p>
+      <div class="hero-stats">
+        <div class="hstat"><span class="hstat-n">27</span><span class="hstat-l">Road Classes</span></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><span class="hstat-n">20</span><span class="hstat-l">EV Models</span></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><span class="hstat-n">4</span><span class="hstat-l">Physics Factors</span></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><span class="hstat-n">&lt;2s</span><span class="hstat-l">Inference</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="main-grid">
+    <!-- LEFT: EV Selector + Conditions + Weather -->
+    <div class="col-left">
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🚗</span><h2 class="card-title">Your EV</h2></div>
+        <input type="text" id="vehicleSearch" class="vehicle-search" placeholder="Search EV model..."/>
+        <div class="vehicle-grid" id="vehicleGrid"></div>
+        <div class="selected-vehicle">
+          <div class="sv-label">Selected</div>
+          <div class="sv-name" id="svName">–</div>
+          <div class="sv-specs" id="svSpecs">–</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🎛️</span><h2 class="card-title">Driving Conditions</h2></div>
+        <div class="conditions-grid">
+          <div class="cond-item"><label class="cond-label">Speed <span id="speedVal">60</span> km/h</label><input type="range" id="speedSlider" class="slider" min="20" max="130" value="60" step="5"/></div>
+          <div class="cond-item"><label class="cond-label">Temperature <span id="tempVal">20</span>°C</label><input type="range" id="tempSlider" class="slider" min="-10" max="50" value="20" step="1"/></div>
+          <div class="cond-item"><label class="cond-label">Tire Pressure <span id="pressureVal">2.3</span> bar</label><input type="range" id="pressureSlider" class="slider" min="1.5" max="3.5" value="2.3" step="0.1"/></div>
+          <div class="cond-item"><label class="cond-label">Battery SOC <span id="socVal">100</span>%</label><input type="range" id="socSlider" class="slider" min="5" max="100" value="100" step="1"/></div>
+          <div class="cond-item"><label class="cond-label">Distance <span id="distVal">100</span> km</label><input type="range" id="distSlider" class="slider" min="10" max="500" value="100" step="10"/></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🌤️</span><h2 class="card-title">Live Weather</h2><span class="weather-badge" id="weatherBadge">Auto</span></div>
+        <div class="weather-search">
+          <input type="text" id="cityInput" class="city-input" placeholder="Enter city..."/>
+          <button id="fetchWeatherBtn" class="btn-weather">Fetch ⚡</button>
+        </div>
+        <div class="weather-display">
+          <div class="weather-icon" id="wIcon">🌤️</div>
+          <div class="weather-details">
+            <div class="weather-city" id="wCity">–</div>
+            <div class="weather-desc" id="wDesc">Enter city to fetch weather</div>
+            <div class="weather-stats"><span>🌡️ <span id="wTemp">--</span>°C</span><span>💧<span id="wHumid">--</span>%</span><span>💨<span id="wWind">--</span>km/h</span></div>
+          </div>
+        </div>
+        <div class="crr-adjust-note" id="crrNote" style="display:none">
+          <span>⚡</span> Crr adjusted for <strong id="weatherCond">clear</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: Upload + Results -->
+    <div class="col-center">
+      <div class="card upload-card">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/*" style="display:none"/>
+          <video id="webcamVideo" class="preview-img" style="display:none" autoplay playsinline></video>
+          <canvas id="webcamCanvas" style="display:none"></canvas>
+          <div class="upload-inner" id="uploadInner">
+            <div class="upload-icon">📷</div>
+            <div class="upload-title">Drop road image here</div>
+            <div class="upload-sub">or click to browse · PNG, JPG, JPEG · max 10MB</div>
+          </div>
+          <img id="previewImg" class="preview-img" style="display:none" alt="preview"/>
+        </div>
+        <div class="upload-actions">
+          <button id="webcamBtn" class="btn-webcam">📸 Camera</button>
+          <button id="captureBtn" class="btn-capture" style="display:none">📷 Capture</button>
+          <button id="stopCamBtn" class="btn-stopcam" style="display:none">✕ Stop</button>
+        </div>
+        <button id="classifyBtn" class="btn-classify" disabled>
+          <span class="btn-text">⚡ Classify Road Surface</span>
+          <div class="btn-spinner" style="display:none"></div>
+        </button>
+      </div>
+
+      <div class="card results-card" id="resultsCard" style="display:none">
+        <div class="result-header">
+          <div class="result-class-badge" id="resultBadge">–</div>
+          <div class="result-conf"><span class="conf-label">Confidence</span><span class="conf-value" id="resultConf">–</span></div>
+        </div>
+        <div class="result-desc" id="resultDesc">–</div>
+        <div class="result-metrics-grid">
+          <div class="rmetric"><div class="rm-icon">🔄</div><div class="rm-val" id="rmCrr">–</div><div class="rm-label">Adj. Crr</div></div>
+          <div class="rmetric"><div class="rm-icon">⚡</div><div class="rm-val" id="rmEnergy">–</div><div class="rm-label">Energy/km</div></div>
+          <div class="rmetric"><div class="rm-icon">🛣️</div><div class="rm-val" id="rmRange">–</div><div class="rm-label">Est. Range</div></div>
+          <div class="rmetric"><div class="rm-icon">🏆</div><div class="rm-val" id="rmScore">–</div><div class="rm-label">Quality</div></div>
+          <div class="rmetric"><div class="rm-icon">🌱</div><div class="rm-val" id="rmCo2">–</div><div class="rm-label">CO₂ equiv.</div></div>
+          <div class="rmetric"><div class="rm-icon">🚦</div><div class="rm-val" id="rmSpeed">–</div><div class="rm-label">Rec. Speed</div></div>
+        </div>
+        <div class="battery-section">
+          <div class="batt-label">Battery used for <span id="battDist">100</span> km</div>
+          <div class="battery-visual">
+            <div class="batt-shell"><div class="batt-fill" id="battFill"></div><div class="batt-text" id="battText">–</div></div>
+            <div class="batt-tip"></div>
+          </div>
+        </div>
+        <div class="safety-row">
+          <div class="safety-badge" id="safetyBadge"><span id="safetyIcon">–</span><span id="safetyText">–</span></div>
+          <div class="physics-factors">
+            <span class="pf-item"><span id="pfSpeedVal">–</span> km/h</span>
+            <span class="pf-item"><span id="pfTempVal">–</span>°C</span>
+            <span class="pf-item"><span id="pfPressureVal">–</span> bar</span>
+            <span class="pf-item"><span id="pfWeatherVal">–</span></span>
+          </div>
+        </div>
+        <div class="chart-section">
+          <div class="chart-title">Top Predictions</div>
+          <div class="prob-chart-wrap">
+            <canvas id="probChart"></canvas>
+          </div>
+        </div>
+
+        <button id="downloadPdfBtn" class="btn-pdf">📄 Download PDF Report</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Donut + Surface Reference -->
+    <div class="col-right">
+      <div class="card donut-card" id="donutCard" style="display:none">
+        <div class="card-header"><span class="card-icon">⚡</span><h2 class="card-title">Energy Breakdown</h2></div>
+        <canvas id="donutChart" width="180" height="180"></canvas>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+
+      <div class="card ref-card">
+        <div class="card-header"><span class="card-icon">📋</span><h2 class="card-title">Surface Reference</h2></div>
+        <div class="ref-filter">
+          <button class="ref-btn active" data-filter="all">All</button>
+          <button class="ref-btn" data-filter="dry">Dry</button>
+          <button class="ref-btn" data-filter="wet">Wet</button>
+          <button class="ref-btn" data-filter="water">Water</button>
+          <button class="ref-btn" data-filter="snow">Snow/Ice</button>
+        </div>
+        <div class="ref-list" id="refList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB 2: ROUTE COMPARISON                                  -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-compare">
+  <div class="tab-hero">
+    <h2>🗺️ Route Energy Comparison</h2>
+    <p>Build two routes with road surface segments. The AI calculates total energy for each and recommends the most battery-efficient path.</p>
+  </div>
+  <div class="compare-page-layout">
+
+    <!-- Route Builder -->
+    <div class="compare-builder card">
+      <div class="routes-split">
+        <!-- Route A -->
+        <div class="route-panel">
+          <div class="route-panel-header route-a-hdr">
+            🅰 Route A
+            <span class="detected-hint" id="detectedHint" style="display:none">
+              📷 Seg 1 from scan
+            </span>
+          </div>
+          <div class="route-segs-list" id="cmpRouteASegs">
+            <!-- Segment 1: Locked to classified surface -->
+            <div class="cmp-seg-row detected-seg" id="detectedSegRow">
+              <span class="seg-num">1</span>
+              <div class="detected-surface-display" id="detectedSurfaceDisplay">
+                <span class="detected-dot"></span>
+                <span id="detectedSurfaceLabel">Not classified yet</span>
+                <span class="detected-lock">🔒</span>
+              </div>
+              <input type="number" class="cmp-seg-dist" value="50" min="1" max="999"/>
+              <span class="seg-unit">km</span>
+              <span style="width:22px"></span>
+            </div>
+          </div>
+          <button class="btn-add-seg" onclick="addSegment('cmpRouteASegs')">＋ Add Segment</button>
+          <div class="route-total" id="routeATotalDist">Total: – km</div>
+          <div class="classify-prompt" id="classifyPrompt">
+            ⚡ Go to <strong>Classify tab</strong> first to auto-detect Segment 1
+          </div>
+        </div>
+
+        <!-- VS Divider -->
+        <div class="vs-divider"><div class="vs-badge">VS</div></div>
+
+        <!-- Route B -->
+        <div class="route-panel">
+          <div class="route-panel-header route-b-hdr">🅱 Route B</div>
+          <div class="route-segs-list" id="cmpRouteBSegs">
+            <div class="cmp-seg-row">
+              <span class="seg-num">1</span>
+              <select class="cmp-seg-surface"></select>
+              <input type="number" class="cmp-seg-dist" value="55" min="1" max="999" placeholder="km"/>
+              <span class="seg-unit">km</span>
+              <button class="seg-remove-btn" onclick="removeSegment(this)">×</button>
+            </div>
+          </div>
+          <button class="btn-add-seg" onclick="addSegment('cmpRouteBSegs')">＋ Add Segment</button>
+          <div class="route-total" id="routeBTotalDist">Total: – km</div>
+        </div>
+      </div>
+
+      <!-- Compare Settings -->
+      <div class="compare-settings">
+        <div class="cs-item">
+          <label>EV: <strong id="cmpVehicleName">–</strong></label>
+          <small>(uses Your EV selection from Classify tab)</small>
+        </div>
+        <div class="cs-item">
+          <label>Speed</label>
+          <input type="number" id="cmpSpeed" class="cs-input" value="60" min="20" max="130"/> km/h
+        </div>
+        <div class="cs-item">
+          <label>Temp</label>
+          <input type="number" id="cmpTemp" class="cs-input" value="20" min="-10" max="50"/>°C
+        </div>
+        <div class="cs-item">
+          <label>Pressure</label>
+          <input type="number" id="cmpPressure" class="cs-input" value="2.3" min="1.5" max="3.5" step="0.1"/> bar
+        </div>
+        <div class="cs-item">
+          <label>SOC</label>
+          <input type="number" id="cmpSoc" class="cs-input" value="90" min="5" max="100"/>%
+        </div>
+        <div class="cs-item cs-weather-city">
+          <label>📍 Route Location</label>
+          <div class="cmp-city-row">
+            <input type="text" id="cmpCityInput" class="cs-city-input" placeholder="City (e.g. Mysuru)" />
+            <button id="cmpFetchWeatherBtn" class="btn-cmp-wx" onclick="fetchCmpWeather()">⚡ Fetch</button>
+          </div>
+          <div id="cmpWeatherStatus" class="cmp-wx-status" style="display:none"></div>
+          <!-- Hidden weather condition used in compare API call -->
+          <select id="cmpWeather" style="display:none">
+            <option value="clear">Clear</option>
+            <option value="rain">Rain</option>
+            <option value="heavy_rain">Heavy Rain</option>
+            <option value="drizzle">Drizzle</option>
+            <option value="snow">Snow</option>
+            <option value="fog">Fog</option>
+            <option value="clouds">Cloudy</option>
+          </select>
+        </div>
+
+        </div>
+      <button id="compareBtn" class="btn-classify" style="margin-top:1rem">⚡ Compare Routes</button>
+
+      <!-- Compare Results — inside card so width matches button -->
+      <div class="compare-results-panel" id="compareResultsPanel" style="display:none;margin-top:1.25rem">
+        <div class="winner-banner" id="winnerBanner">–</div>
+        <div class="compare-results-grid">
+          <div class="cr-box cr-box-a" id="crBoxA"></div>
+          <div class="cr-box cr-box-savings" id="crBoxSavings"></div>
+          <div class="cr-box cr-box-b" id="crBoxB"></div>
+        </div>
+        <div class="compare-chart-wrap">
+          <canvas id="compareChart" height="100"></canvas>
+        </div>
+        <div class="compare-segs-detail" id="compareSegsDetail"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB 3: FLEET                                            -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-fleet">
+  <div class="tab-hero">
+    <h2>🚛 Fleet Route Analysis</h2>
+    <p>Upload up to 10 road images from different segments of your fleet route. Get aggregate energy cost, per-segment safety analysis, and identify the riskiest parts of the route.</p>
+  </div>
+  <div class="fleet-page-layout">
+    <div class="fleet-left card">
+      <div class="fleet-drop" id="fleetDrop">
+        <input type="file" id="fleetInput" accept="image/*" multiple style="display:none"/>
+        <div class="fleet-drop-inner" id="fleetDropInner">
+          <div style="font-size:2.5rem">🛣️</div>
+          <div style="font-weight:600;margin:.5rem 0;font-size:1rem">Drop up to 10 route images</div>
+          <div style="font-size:.8rem;color:#5A6478">Each image = one road segment · PNG, JPG</div>
+        </div>
+        <div id="fleetPreviewGrid" class="fleet-preview-grid"></div>
+      </div>
+      <div class="fleet-controls">
+        <div class="fc-row">
+          <label>Segment distance</label>
+          <input type="number" id="fleetSegDist" value="50" min="1" max="500" class="cs-input"/> km each
+        </div>
+        <div class="fc-row">
+          <label>EV Model</label>
+          <strong id="fleetVehicleName">–</strong>
+          <small>(from Classify tab)</small>
+        </div>
+      </div>
+      <button id="analyzeFleetBtn" class="btn-classify" style="margin-top:1rem" disabled>⚡ Analyze Fleet Route</button>
+    </div>
+    <div class="fleet-right" id="fleetResults" style="display:none">
+      <div class="fleet-summary" id="fleetSummary"></div>
+      <div class="fleet-chart-wrap"><canvas id="fleetChart" height="120"></canvas></div>
+      <div class="fleet-table" id="fleetTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ -->
+<!-- TAB 4: HEATMAP                                          -->
+<!-- ════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-heatmap">
+  <div class="tab-hero">
+    <h2>📍 Road Condition Heatmap</h2>
+    <p>Upload road images with GPS coordinates to build a crowd-sourced road quality map. Colored markers show surface quality at each location.</p>
+  </div>
+  <div class="heatmap-page-layout">
+    <div class="heatmap-left card">
+      <!-- City search -> auto-fills lat/lon -->
+      <div class="cond-item" style="margin-bottom:.85rem">
+        <label class="cond-label">&#128269; City Search (auto-fills coordinates)</label>
+        <div style="display:flex;gap:.4rem;margin-top:.35rem">
+          <input type="text" id="hmCityInput" class="city-input"
+                 placeholder="e.g. Bengaluru, Mysuru, Pune" style="flex:1"
+                 onkeydown="if(event.key==='Enter') lookupHmCity()"/>
+          <button onclick="lookupHmCity()" class="btn-weather" id="hmLocateBtn">&#128205; Locate</button>
+        </div>
+        <div id="hmCityStatus" style="font-size:.72rem;margin-top:.35rem;padding:.3rem .6rem;border-radius:6px;display:none"></div>
+      </div>
+      <div class="cond-item" style="margin-bottom:.75rem">
+        <label class="cond-label">Location Label</label>
+        <input type="text" id="hmLocation" class="city-input" placeholder="e.g. NH-44 Hyderabad" style="width:100%;margin-top:.3rem"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+        <div class="cond-item">
+          <label class="cond-label">Latitude</label>
+          <input type="number" id="hmLat" class="cs-input" placeholder="17.385" step="0.001" style="width:100%;margin-top:.3rem"/>
+        </div>
+        <div class="cond-item">
+          <label class="cond-label">Longitude</label>
+          <input type="number" id="hmLon" class="cs-input" placeholder="78.487" step="0.001" style="width:100%;margin-top:.3rem"/>
+        </div>
+      </div>
+      <!-- Use last classified image shortcut -->
+      <button id="useClassifiedBtn" onclick="useClassifiedImage()"
+              class="btn-cmp-wx" style="width:100%;padding:.55rem;margin-bottom:.6rem;font-size:.82rem;font-weight:600" disabled>
+        &#128269; Use Last Classified Image
+      </button>
+      <div class="upload-zone" id="hmUploadZone" style="padding:1.5rem;min-height:110px">
+        <input type="file" id="hmFileInput" accept="image/*" style="display:none"/>
+        <div id="hmUploadInner" style="text-align:center">
+          <div style="font-size:1.8rem">&#128205;</div>
+          <div style="font-size:.82rem;margin:.3rem 0;font-weight:600">Click to upload road image</div>
+          <div style="font-size:.72rem;color:#5A6478">Or use classified image button above</div>
+        </div>
+        <img id="hmPreview" style="display:none;width:100%;max-height:140px;object-fit:cover;border-radius:8px" alt="preview"/>
+      </div>
+      <button id="addToMapBtn" class="btn-classify" style="margin-top:.75rem" disabled>&#128205; Analyze &amp; Add to Map</button>
+
+      <div style="margin-top:1rem">
+        <div style="font-size:.8rem;font-weight:600;color:#8892AA;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">📊 Readings Log</div>
+        <div class="heatmap-readings" id="hmReadingsList">
+          <div style="text-align:center;color:#5A6478;font-size:.8rem;padding:1rem">No readings yet. Search a city and add a road image above.</div>
+        </div>
+      </div>
+
+      <div class="map-legend" style="margin-top:1rem">
+        <span class="legend-item"><span class="leg-dot" style="background:#39FF14"></span>High Quality</span>
+        <span class="legend-item"><span class="leg-dot" style="background:#FFD700"></span>Medium</span>
+        <span class="legend-item"><span class="leg-dot" style="background:#FF4444"></span>Low / Danger</span>
+      </div>
+    </div>
+    <div class="heatmap-right">
+      <div id="roadMap" style="width:100%;height:100%;min-height:500px;border-radius:14px;border:1px solid rgba(0,212,255,0.15)"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ─────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-brand">⚡ EV RouteIQ v2.0</div>
+  <div class="footer-info">EfficientNet-B4 · 27 Road Classes · SAE J2452 + ISO 28580 + Wallentowitz + Wong</div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
