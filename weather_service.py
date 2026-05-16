@@ -1,7 +1,6 @@
 """
 EV RouteIQ — Weather Service (Multi-API)
 Primary  : Open-Meteo (FREE forever, no API key needed)
-Secondary: WeatherAPI.com (key: c5df2b2b72c7453099c35832261405 — trial till May 21)
 Fallback : Demo city presets → Default
 """
 

@@ -1,4 +1,14 @@
+---
+title: EV RouteIQ
+emoji: ⚡
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # ⚡ EV RouteIQ — Deep Learning Road Surface Classification with Integrated Rolling Resistance
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.9+-blue?logo=python" />
