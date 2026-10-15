@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 title: EV RouteIQ
 emoji: ⚡
@@ -269,3 +270,6 @@ pytest tests/test_project.py -v
 ## 📄 License
 
 This project is for academic purposes. See individual library licenses for dependencies.
+=======
+# EV_RouteIQ
+>>>>>>> c918ba7d01acd7426e2b012fd5b885491f7c7768
